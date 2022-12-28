@@ -22,7 +22,6 @@ class DynamoDBGSIPlugin {
         if (service.resources && service.resources.Resources) {
             Object.keys(service.resources.Resources).forEach((resourceName) => {
                 const resource = service.resources.Resources[resourceName];
-
                 if (resource.Type === 'AWS::DynamoDB::Table') {
                     if (resource.Properties.GlobalSecondaryIndexes) {
                         this.gsiIndexes[resource.Properties.TableName] = resource.Properties.GlobalSecondaryIndexes;
@@ -36,10 +35,8 @@ class DynamoDBGSIPlugin {
     createGSIs() {
         const region = this.options.region;
         const dynamoDb = new AWS.DynamoDB({ region });
-
         for (const [tableName, gsis] of this.gsiIndexes) {
             for (const gsi of gsis) {
-
                 const params = {
                     TableName: tableName,
                     GlobalSecondaryIndexUpdates: [
@@ -48,7 +45,6 @@ class DynamoDBGSIPlugin {
                         },
                     ],
                 };
-
                 await dynamoDb.updateTable(params).promise();
             }
         }
