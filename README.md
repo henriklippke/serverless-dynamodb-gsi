@@ -21,7 +21,7 @@ The plugin is automatically activated and removes the GSI indexes defined in a C
 
 Note: Make sure to define the GSI indexes in the CloudFormation template as desired so that they are properly added.
 
-## Problem: 
+## Problem
 In AWS CloudFormation, there is a limitation where only one GSI (Global Secondary Index) can be added at a time. This means that every time you want to add or modify a GSI, you have to go through the entire process of adding or modifying a GSI by removing it and then adding it back.
 
 This can cause problems in deployment processes, especially when multiple GSI's need to be added. Every time a GSI is added or modified, the entire deployment process has to be restarted, which can lead to longer deployment times. There is also a risk of errors occurring during the deployment process that can cause the deployment to fail and need to be repeated.
