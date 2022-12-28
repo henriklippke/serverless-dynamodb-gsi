@@ -6,14 +6,14 @@ This plugin is for the Serverless framework and allows for the removal of AWS Dy
 ## Installation
 To install the plugin, run the following command:
 ```
-npm install dynamodb-gsi-plugin --save-dev
+npm install serverless-dynamodb-gsi --save-dev
 ```
 
 ## Configuration
 Add the plugin to the serverless.yml file of your project and configure it as follows:
 ```
 plugins:
-  - dynamodb-gsi-plugin
+  - serverless-dynamodb-gsi
 ```
 
 ## Usage
