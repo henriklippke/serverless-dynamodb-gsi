@@ -17,18 +17,22 @@ class DynamoDBGSIPlugin {
     }
 
     removeGSIsFromTemplate() {
-        const service = this.serverless.service;
-
-        if (service.resources && service.resources.Resources) {
-            Object.keys(service.resources.Resources).forEach((resourceName) => {
-                const resource = service.resources.Resources[resourceName];
-                if (resource.Type === 'AWS::DynamoDB::Table') {
-                    if (resource.Properties.GlobalSecondaryIndexes) {
-                        this.gsiIndexes[resource.Properties.TableName] = resource.Properties.GlobalSecondaryIndexes;
-                        delete resource.Properties.GlobalSecondaryIndexes;
+        const { resources: { Resources } } = this.serverless.service;
+        
+        if (Resources) {
+          Object.values(Resources).forEach((resource) => {
+            if (resource.Type === 'AWS::DynamoDB::Table') {
+                const { TableName, GlobalSecondaryIndexes, AttributeDefinitions } = resource.Properties;
+                this.gsiIndexes[TableName] = GlobalSecondaryIndexes;
+                delete resource.Properties.GlobalSecondaryIndexes;
+                GlobalSecondaryIndexes.forEach(({ KeySchema: [{ AttributeName }] }) => {
+                    const index = AttributeDefinitions.findIndex(({ AttributeName: name }) => name === AttributeName);
+                    if (index !== -1) {
+                        AttributeDefinitions.splice(index, 1);
                     }
-                }
-            });
+                });
+            }
+          });
         }
     }
 
