@@ -6,6 +6,7 @@ class DynamoDBGSIPlugin {
     constructor(serverless, options) {
         this.serverless = serverless;
         this.options = options;
+        this.provider = this.serverless.getProvider('aws');
 
         this.hooks = {
             'before:package:createDeploymentArtifacts': this.removeGSIsFromTemplate.bind(this),
