@@ -12,30 +12,36 @@ class DynamoDBGSIPlugin {
             'before:package:createDeploymentArtifacts': this.removeGSIsFromTemplate.bind(this),
             'after:deploy:deploy': this.createGSIs.bind(this),
         };
-
         this.gsiIndexes = [];
+        this.attributeDefinitions = [];
     }
 
     removeGSIsFromTemplate() {
-        const service = this.serverless.service;
-
-        if (service.resources && service.resources.Resources) {
-            Object.keys(service.resources.Resources).forEach((resourceName) => {
-                const resource = service.resources.Resources[resourceName];
+        const { resources: { Resources } } = this.serverless.service;
+        
+        if (Resources) {
+            for (const resource of Object.values(Resources)) {
                 if (resource.Type === 'AWS::DynamoDB::Table') {
-                    if (resource.Properties.GlobalSecondaryIndexes) {
-                        this.gsiIndexes[resource.Properties.TableName] = resource.Properties.GlobalSecondaryIndexes;
-                        delete resource.Properties.GlobalSecondaryIndexes;
+                    const { TableName, GlobalSecondaryIndexes, AttributeDefinitions } = resource.Properties;
+                    this.gsiIndexes.push({ [TableName]: GlobalSecondaryIndexes });
+                    delete resource.Properties.GlobalSecondaryIndexes;
+                    for (const { KeySchema: [{ AttributeName }] } of GlobalSecondaryIndexes) {
+                        const index = AttributeDefinitions.findIndex(({ AttributeName: name }) => name === AttributeName);
+                        if (index !== -1) {
+                            this.attributeDefinitions.push(AttributeDefinitions.splice(index, 1)[0]);
+                        }
                     }
                 }
-            });
+            }
         }
     }
-
-    createGSIs() {
+    
+    async createGSIs() {
         const region = this.options.region;
         const dynamoDb = new AWS.DynamoDB({ region });
-        for (const [tableName, gsis] of this.gsiIndexes) {
+        for (const [index, obj] of Object.entries(this.gsiIndexes)) {
+            const tableName = Object.keys(obj)[0];
+            const gsis = Object.values(obj)[0];
             for (const gsi of gsis) {
                 const params = {
                     TableName: tableName,
@@ -44,6 +50,7 @@ class DynamoDBGSIPlugin {
                             Create: gsi,
                         },
                     ],
+                    AttributeDefinitions: this.attributeDefinitions,
                 };
                 await dynamoDb.updateTable(params).promise();
             }
@@ -52,43 +59,3 @@ class DynamoDBGSIPlugin {
 }
 
 module.exports = DynamoDBGSIPlugin;
-
-
-/// Compare 
-//bitte schreibe mir eine javascript function die per sdk alle dynamoDB gsi holt und überprüft ob diese mit den per cloudformation definierten GSIs übereinstimmt.
-
-async function checkDynamoDBGSIs(dynamoDb, cloudFormationGsis) {
-    const tableName = "your-table-name";
-  
-    // Get the current GSIs for the DynamoDB table
-    const result = await dynamoDb.describeTable({ TableName: tableName }).promise();
-    const dynamoDbGsis = result.Table.GlobalSecondaryIndexes;
-  
-    // Check if the GSIs in CloudFormation match the ones in DynamoDB
-    let isMatch = true;
-    if (dynamoDbGsis.length !== cloudFormationGsis.length) {
-      isMatch = false;
-    } else {
-      for (let i = 0; i < dynamoDbGsis.length; i++) {
-        const dynamoDbGsi = dynamoDbGsis[i];
-        const cloudFormationGsi = cloudFormationGsis[i];
-        if (dynamoDbGsi.IndexName !== cloudFormationGsi.IndexName ||
-            dynamoDbGsi.KeySchema.length !== cloudFormationGsi.KeySchema.length ||
-            dynamoDbGsi.Projection.ProjectionType !== cloudFormationGsi.ProjectionType) {
-          isMatch = false;
-          break;
-        }
-        for (let j = 0; j < dynamoDbGsi.KeySchema.length; j++) {
-          const dynamoDbKeySchema = dynamoDbGsi.KeySchema[j];
-          const cloudFormationKeySchema = cloudFormationGsi.KeySchema[j];
-          if (dynamoDbKeySchema.AttributeName !== cloudFormationKeySchema.AttributeName ||
-              dynamoDbKeySchema.KeyType !== cloudFormationKeySchema.KeyType) {
-            isMatch = false;
-            break;
-          }
-        }
-      }
-    }
-  
-    return isMatch;
-  }
