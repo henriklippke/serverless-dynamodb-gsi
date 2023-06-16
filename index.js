@@ -22,27 +22,21 @@ class DynamoDBGSIPlugin {
         if (Resources) {
             for (const resource of Object.values(Resources)) {
                 if (resource.Type === 'AWS::DynamoDB::Table') {
+                    console.log(`Removing GSIs from table '${resource.Properties.TableName}'...`);
                     const { TableName, GlobalSecondaryIndexes, AttributeDefinitions } = resource.Properties;
                     this.gsiIndexes.push({ [TableName]: GlobalSecondaryIndexes });
                     delete resource.Properties.GlobalSecondaryIndexes;
-    
+
+                    console.log(`Removing attribute definitions from table '${resource.Properties.TableName}'...`);
                     for (const gsi of GlobalSecondaryIndexes) {
+                        // Remove attribute definitions used in the GSI key schema
                         for (const { AttributeName } of gsi.KeySchema) {
                             const index = AttributeDefinitions.findIndex(({ AttributeName: name }) => name === AttributeName);
                             if (index !== -1) {
                                 this.attributeDefinitions.push(AttributeDefinitions.splice(index, 1)[0]);
                             }
                         }
-    
-                        gsi.KeySchema = gsi.KeySchema.filter(({ AttributeName }) =>
-                            AttributeDefinitions.some(({ AttributeName: name }) => name === AttributeName)
-                        );
                     }
-
-                    let { KeySchema } = resource.Properties;
-                    KeySchema = KeySchema.filter(({ AttributeName }) =>
-                        AttributeDefinitions.some(({ AttributeName: name }) => name === AttributeName)
-                    );
                 }
             }
         }
@@ -55,12 +49,12 @@ class DynamoDBGSIPlugin {
         for (const [index, obj] of Object.entries(this.gsiIndexes)) {
             const tableName = Object.keys(obj)[0];
             const gsis = Object.values(obj)[0];
-    
             for (const gsi of gsis) {
                 if (gsi.KeySchema.length === 0) {
                     console.warn(`Skipping GSI creation for table '${tableName}' due to empty KeySchema.`);
                     continue;
                 }
+                console.log(`Creating GSI '${gsi.IndexName}' for table '${tableName}'...`);
     
                 const params = {
                     TableName: tableName,
