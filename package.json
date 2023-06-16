@@ -1,7 +1,7 @@
 {
   "name": "serverless-dynamodb-gsi",
   "author": "@henriklippke",
-  "version": "0.0.2",
+  "version": "0.0.2-1",
   "description": "With this plugin you can work around the fact that only one GSI can be added at a time via CloudFormation.",
   "main": "index.js",
   "scripts": {
