@@ -29,7 +29,6 @@ class DynamoDBGSIPlugin {
 
                     console.log(`Removing attribute definitions from table '${resource.Properties.TableName}'...`);
                     for (const gsi of GlobalSecondaryIndexes) {
-                        // Remove attribute definitions used in the GSI key schema
                         for (const { AttributeName } of gsi.KeySchema) {
                             const index = AttributeDefinitions.findIndex(({ AttributeName: name }) => name === AttributeName);
                             if (index !== -1) {
@@ -69,8 +68,21 @@ class DynamoDBGSIPlugin {
                     ],
                     AttributeDefinitions: this.attributeDefinitions,
                 };
-    
+
                 await dynamoDb.updateTable(params).promise();
+                if (gsis.indexOf(gsi) == gsis.length - 1) {
+                    console.log('Last GSI created, skipping wait...');
+                    break;
+                }
+
+                console.log(`Waiting for GSI '${gsi.IndexName}' to be created...`);
+                let description = await dynamoDb.describeTable({ TableName: tableName }).promise();
+                let gsi_description = description.Table.GlobalSecondaryIndexes.find(({ IndexName }) => IndexName === gsi.IndexName);
+                while (gsi_description === undefined || gsi_description.IndexStatus !== 'ACTIVE') {
+                    await new Promise(resolve => setTimeout(resolve, 15000));
+                    description = await dynamoDb.describeTable({ TableName: tableName }).promise();
+                    gsi_description = description.Table.GlobalSecondaryIndexes.find(({ IndexName }) => IndexName === gsi.IndexName);
+                }
             }
         }
     }
