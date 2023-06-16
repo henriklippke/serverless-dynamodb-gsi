@@ -18,17 +18,22 @@ class DynamoDBGSIPlugin {
 
     removeGSIsFromTemplate() {
         const { resources: { Resources } } = this.serverless.service;
-        
+    
         if (Resources) {
             for (const resource of Object.values(Resources)) {
                 if (resource.Type === 'AWS::DynamoDB::Table') {
+                    console.log(`Removing GSIs from table '${resource.Properties.TableName}'...`);
                     const { TableName, GlobalSecondaryIndexes, AttributeDefinitions } = resource.Properties;
                     this.gsiIndexes.push({ [TableName]: GlobalSecondaryIndexes });
                     delete resource.Properties.GlobalSecondaryIndexes;
-                    for (const { KeySchema: [{ AttributeName }] } of GlobalSecondaryIndexes || []) {
-                        const index = AttributeDefinitions.findIndex(({ AttributeName: name }) => name === AttributeName);
-                        if (index !== -1) {
-                            this.attributeDefinitions.push(AttributeDefinitions.splice(index, 1)[0]);
+
+                    console.log(`Removing attribute definitions from table '${resource.Properties.TableName}'...`);
+                    for (const gsi of GlobalSecondaryIndexes) {
+                        for (const { AttributeName } of gsi.KeySchema) {
+                            const index = AttributeDefinitions.findIndex(({ AttributeName: name }) => name === AttributeName);
+                            if (index !== -1) {
+                                this.attributeDefinitions.push(AttributeDefinitions.splice(index, 1)[0]);
+                            }
                         }
                     }
                 }
@@ -39,20 +44,45 @@ class DynamoDBGSIPlugin {
     async createGSIs() {
         const region = this.options.region;
         const dynamoDb = new AWS.DynamoDB({ region });
+    
         for (const [index, obj] of Object.entries(this.gsiIndexes)) {
             const tableName = Object.keys(obj)[0];
             const gsis = Object.values(obj)[0];
             for (const gsi of gsis) {
+                if (gsi.KeySchema.length === 0) {
+                    console.warn(`Skipping GSI creation for table '${tableName}' due to empty KeySchema.`);
+                    continue;
+                }
+                console.log(`Creating GSI '${gsi.IndexName}' for table '${tableName}'...`);
+    
                 const params = {
                     TableName: tableName,
                     GlobalSecondaryIndexUpdates: [
                         {
-                            Create: gsi,
+                            Create: {
+                                IndexName: gsi.IndexName,
+                                KeySchema: gsi.KeySchema,
+                                Projection: gsi.Projection,
+                            },
                         },
                     ],
                     AttributeDefinitions: this.attributeDefinitions,
                 };
+
                 await dynamoDb.updateTable(params).promise();
+                if (gsis.indexOf(gsi) == gsis.length - 1) {
+                    console.log('Last GSI created, skipping wait...');
+                    break;
+                }
+
+                console.log(`Waiting for GSI '${gsi.IndexName}' to be created...`);
+                let description = await dynamoDb.describeTable({ TableName: tableName }).promise();
+                let gsi_description = description.Table.GlobalSecondaryIndexes.find(({ IndexName }) => IndexName === gsi.IndexName);
+                while (gsi_description === undefined || gsi_description.IndexStatus !== 'ACTIVE') {
+                    await new Promise(resolve => setTimeout(resolve, 15000));
+                    description = await dynamoDb.describeTable({ TableName: tableName }).promise();
+                    gsi_description = description.Table.GlobalSecondaryIndexes.find(({ IndexName }) => IndexName === gsi.IndexName);
+                }
             }
         }
     }
