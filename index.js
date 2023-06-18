@@ -96,5 +96,3 @@ class DynamoDBGSIPlugin {
     }
 }
 module.exports = DynamoDBGSIPlugin;
-
-module.exports = DynamoDBGSIPlugin;

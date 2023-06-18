@@ -1,16 +1,13 @@
 {
   "name": "serverless-dynamodb-gsi",
-  "version": "0.0.1",
+  "author": "@henriklippke",
+  "version": "0.0.3-2",
   "description": "With this plugin you can work around the fact that only one GSI can be added at a time via CloudFormation.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/henriklippke/serverless-dynamodb-gsi.git"
-  },
-  "author": "",
+  "repository": "git://github.com/henriklippke/serverless-dynamodb-gsi.git",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/henriklippke/serverless-dynamodb-gsi/issues"
@@ -18,5 +15,9 @@
   "homepage": "https://github.com/henriklippke/serverless-dynamodb-gsi#readme",
   "dependencies": {
     "aws-sdk": "^2.1284.0"
+  },
+  "devDependencies": {
+    "jest": "^29.5.0",
+    "serverless": "^3.30.1"
   }
 }
