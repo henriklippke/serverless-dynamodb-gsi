@@ -28,7 +28,7 @@ class DynamoDBGSIPlugin {
                     delete resource.Properties.GlobalSecondaryIndexes;
 
                     console.log(`Removing attribute definitions from table '${resource.Properties.TableName}'...`);
-                    for (const gsi of GlobalSecondaryIndexes) {
+                    for (const gsi of GlobalSecondaryIndexes || []) {
                         for (const { AttributeName } of gsi.KeySchema) {
                             const index = AttributeDefinitions.findIndex(({ AttributeName: name }) => name === AttributeName);
                             if (index !== -1) {
